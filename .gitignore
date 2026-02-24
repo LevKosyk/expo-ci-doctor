@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Env / secrets
+.env
+.env.local
+
+# CLI config (user-local)
+.expo-ci-doctor/
+
+# Snapshots (generated)
+expo-doctor-snapshot.json
+
+# Logs
+*.log
