@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { getLicenseState } from '../core/license.js';
+import { getLicenseEntitlements } from '../core/license-entitlements.js';
 import { findRule, allRules } from '../rules/rules.js';
 
 /**
@@ -7,7 +7,7 @@ import { findRule, allRules } from '../rules/rules.js';
  * Shows a detailed explanation of a rule by id.
  */
 export async function explainCommand(ruleId: string): Promise<void> {
-  const license = getLicenseState();
+  const license = await getLicenseEntitlements();
 
   const rule = findRule(ruleId);
 
@@ -25,7 +25,7 @@ export async function explainCommand(ruleId: string): Promise<void> {
   }
 
   // Pro-only explain for pro rules
-  if (rule.requiresPro && license.mode !== 'pro') {
+  if (rule.requiresPro && !license.canUseProRules) {
     console.log('');
     console.log(chalk.yellow(`  🔒  "${ruleId}" is a Pro rule.`));
     console.log(chalk.dim('     Run: expo-ci-doctor login <KEY> to unlock detailed explanations.'));

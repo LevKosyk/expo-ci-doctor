@@ -20,6 +20,12 @@ const missingAppConfig: Rule = {
           'app.json or app.config.js to know how to build your project.',
         fix: 'Create app.json in the root:\n' +
           '  { "expo": { "name": "MyApp", "slug": "my-app", "version": "1.0.0" } }',
+        hints: {
+          what: 'No Expo app config (app.json or app.config.js) was found.',
+          why: 'Expo CLI and EAS Build cannot determine app name, slug, or SDK version without it.',
+          where: 'Project root directory',
+          when: 'Usually appears when a project is initialized manually or the config file was accidentally deleted.',
+        }
       }];
     }
     return [];

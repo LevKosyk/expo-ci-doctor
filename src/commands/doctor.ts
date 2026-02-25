@@ -1,13 +1,18 @@
 import * as fs from 'node:fs';
+import { execSync } from 'node:child_process';
 import chalk from 'chalk';
 import ora from 'ora';
 import { getCwd } from '../core/context.js';
-import { getLicenseState } from '../core/license.js';
+import { getLicenseEntitlements } from '../core/license-entitlements.js';
 import { loadConfig } from '../core/config.js';
 import { detectProject } from '../detectors/project.js';
 import { runRules, exitCode } from '../rules/rules.js';
 import { matchPatterns } from '../analyzers/matcher.js';
 import { printReport } from '../report/print.js';
+import { EXIT_CODES, exitWithCode } from '../core/exit-codes.js';
+import { computeSignalsFromRules, aggregateSignals } from '../analysis/signals.js';
+import { computeReadinessScore } from '../analysis/readiness.js';
+import { recordRun, computeTrend } from '../analysis/history.js';
 
 // ─── Verdict scoring ────────────────────────────────────────────────
 
@@ -55,10 +60,14 @@ function computeVerdict(
  * The `doctor` command.
  * Runs check + auto-discovers and analyzes logs → final verdict.
  */
-export async function doctorCommand(): Promise<void> {
+export async function doctorCommand(options: {
+  copy?: boolean;
+  openDocs?: boolean;
+  [key: string]: any;
+} = {}): Promise<void> {
   const cwd = getCwd();
-  const license = getLicenseState();
-  const isPro = license.mode === 'pro';
+  const license = await getLicenseEntitlements();
+  const isPro = license.canUseDoctor;
 
   console.log('');
   console.log(
@@ -129,6 +138,20 @@ export async function doctorCommand(): Promise<void> {
 
   printReport(checkResults);
 
+  // ── Readiness Score ─────────────────────────────────────────────
+  const signals = computeSignalsFromRules(checkResults);
+  const signalSummary = aggregateSignals(signals);
+  const readiness = computeReadinessScore(signalSummary);
+  const riskColor = readiness.risk === 'High' ? chalk.red
+    : readiness.risk === 'Medium' ? chalk.yellow : chalk.green;
+  console.log('');
+  console.log(
+    `  Build readiness: ${riskColor.bold(String(readiness.score))} / 100` +
+    chalk.dim(`  Risk: ${readiness.risk}`)
+  );
+  console.log(chalk.dim(`  ${readiness.summary}`));
+  console.log('');
+
   if (skippedPro > 0) {
     console.log(chalk.dim(`  🔒 ${skippedPro} Pro rules skipped — unlock for deeper analysis`));
     console.log('');
@@ -165,7 +188,81 @@ export async function doctorCommand(): Promise<void> {
     console.log(chalk.green('  Project is ready for CI. Happy building!'));
   }
 
+  // ── Record run in history (Pro) ──────────────────────────────────
+  if (isPro) {
+    try {
+      recordRun({
+        timestamp: new Date().toISOString(),
+        outcome: verdict.code === 0 ? 'pass' : 'fail',
+        score: readiness.score,
+        errorCount: checkErrors,
+        warnCount: checkWarns,
+        primaryFailureCategory: checkResults.find(r => r.level === 'error')?.id,
+      });
+    } catch { /* non-critical */ }
+
+    // ── Stability Trend ────────────────────────────────────────────
+    const trend = computeTrend();
+    if (trend.entries.length >= 2) {
+      const arrow = trend.direction === 'Improving' ? '↑'
+        : trend.direction === 'Degrading' ? '↓' : '→';
+      const trendColor = trend.direction === 'Improving' ? chalk.green
+        : trend.direction === 'Degrading' ? chalk.red : chalk.dim;
+      console.log('');
+      console.log(`  CI stability trend: ${trendColor.bold(`${trend.direction} ${arrow}`)}`);
+      if (trend.recentSymbols.length > 0) {
+        const colored = trend.recentSymbols.map(s =>
+          s === '✔' ? chalk.green(s) : chalk.red(s)
+        ).join('  ');
+        console.log(`  Last ${trend.recentSymbols.length} runs: ${colored}`);
+      }
+    }
+  }
+
   console.log('');
+  
+  // ── Provide Fix Recipes for top error ────────────────────────────
+  const topError = checkResults.find((r) => r.level === 'error');
+  if (topError) {
+    console.log(chalk.bold('  🛠  Top Priority Fix Recipe'));
+    console.log(chalk.dim('  ───────────────────────────────────'));
+    console.log(`  ${chalk.red('✖')} ${chalk.bold(topError.title)}`);
+    console.log(`  ${chalk.dim('Details:')} ${topError.details}`);
+    if (topError.fix) {
+      console.log(`\n  ${chalk.green('Step-by-step fix:')}`);
+      const fixSteps = topError.fix.split('\n');
+      fixSteps.forEach((step, idx) => {
+        console.log(`    ${chalk.green(idx + 1 + '.')} ${chalk.white(step.trim())}`);
+      });
+      console.log('');
+      
+      const snippetToCopy = typeof topError.fix === 'string' ? topError.fix : '';
+      
+      if (options.copy && isPro && snippetToCopy) {
+        try {
+          execSync(`echo "${snippetToCopy.replace(/"/g, '\\"')}" | pbcopy`);
+          console.log(chalk.blue('  📋 Fix snippet copied to clipboard!'));
+        } catch (e) {
+          console.log(chalk.yellow('  ⚠️  Could not copy to clipboard.'));
+        }
+      } else if (!isPro && options.copy) {
+        console.log(chalk.yellow('  🔒 --copy is a Pro feature. Run: expo-ci-doctor login <KEY>'));
+      }
+      
+      if (options.openDocs && isPro) {
+        try {
+          execSync(`open https://docs.expo.dev/`);
+          console.log(chalk.blue('  🌐 Opened Expo documentation.'));
+        } catch (e) {
+          console.log(chalk.yellow('  ⚠️  Could not open docs.'));
+        }
+      } else if (!isPro && options.openDocs) {
+        console.log(chalk.yellow('  🔒 --open-docs is a Pro feature. Run: expo-ci-doctor login <KEY>'));
+      }
+    }
+    console.log('');
+  }
+
   process.exit(verdict.code);
 }
 

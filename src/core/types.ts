@@ -15,6 +15,12 @@ export const RuleResultSchema = z.object({
   details: z.string(),
   fix: z.string().optional(),
   filePointer: z.string().optional(),
+  hints: z.object({
+    what: z.string().optional(),
+    why: z.string().optional(),
+    where: z.string().optional(),
+    when: z.string().optional(),
+  }).optional(),
 });
 export type RuleResult = z.infer<typeof RuleResultSchema>;
 

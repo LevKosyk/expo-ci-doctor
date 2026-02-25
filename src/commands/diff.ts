@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import chalk from 'chalk';
 import { getCwd } from '../core/context.js';
 import { detectProject } from '../detectors/project.js';
+import { requireProFeature } from '../core/license-entitlements.js';
 
 interface Snapshot {
   timestamp: string;
@@ -40,6 +41,8 @@ interface DiffItem {
  * Compares the current project state against a saved snapshot.
  */
 export async function diffCommand(snapshotFile: string): Promise<void> {
+  await requireProFeature('diff');
+
   if (!fs.existsSync(snapshotFile)) {
     console.error(chalk.red(`\n  ✖  Snapshot not found: ${snapshotFile}\n`));
     process.exit(2);
@@ -50,7 +53,7 @@ export async function diffCommand(snapshotFile: string): Promise<void> {
   const info = detectProject(cwd);
 
   console.log('');
-  console.log(chalk.bold('  expo-ci-doctor diff') + chalk.dim(' · Snapshot comparison'));
+  console.log(chalk.bold('  expo-ci-doctor diff') + chalk.dim(' · Snapshot comparison') + chalk.green(' PRO'));
   console.log(chalk.dim(`  Snapshot: ${snapshotFile} (${old.timestamp})`));
   console.log('');
 
@@ -157,7 +160,7 @@ export async function diffCommand(snapshotFile: string): Promise<void> {
 
   for (const d of diffs) {
     const icon = d.risk === 'error' ? chalk.red('✖') : d.risk === 'warn' ? chalk.yellow('⚠') : chalk.blue('ℹ');
-    const label = d.risk === 'error' ? chalk.red.bold('BREAK') : d.risk === 'warn' ? chalk.yellow.bold('CHANGE') : chalk.blue.bold('INFO');
+    const label = d.risk === 'error' ? chalk.red.bold('CI BREAK') : d.risk === 'warn' ? chalk.yellow.bold('RISK') : chalk.blue.bold('INFO');
 
     console.log(`  ${icon}  ${label}  ${chalk.bold(d.field)}`);
     console.log(`     was: ${chalk.dim(String(d.was))}`);
