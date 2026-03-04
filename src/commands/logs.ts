@@ -1,13 +1,12 @@
 import * as fs from 'node:fs';
 import chalk from 'chalk';
 import ora from 'ora';
-import { getLicenseEntitlements } from '../core/license-entitlements.js';
 import { matchPatterns, type MatchResult } from '../analyzers/matcher.js';
-import { filterByNoise, noiseFilterNote, type NoiseMode } from '../analysis/noise.js';
-import { computeSignalsFromMatches, computeSignalsFromRules, aggregateSignals } from '../analysis/signals.js';
-import { computeReadinessScore } from '../analysis/readiness.js';
-import { predictFailure } from '../analysis/prediction.js';
-import { renderMarkdown } from '../output/markdown.js';
+import { filterByNoise, noiseFilterNote, type NoiseMode } from '../analyzers/noise.js';
+import { computeSignalsFromMatches, aggregateSignals } from '../analyzers/signals.js';
+import { computeReadinessScore } from '../utils/score-calculator.js';
+import { predictFailure } from '../analyzers/prediction.js';
+import { renderMarkdown } from '../reporters/markdown-reporter.js';
 
 const CONF_LABEL = {
   high:     chalk.red('●'),
@@ -34,25 +33,14 @@ const STAGE_ICON: Record<string, string> = {
 const STAGE_ORDER = ['Auth', 'CI / Environment', 'Install', 'Prebuild', 'iOS', 'Android', 'Metro / JS'];
 
 /**
- * The `analyze` command.
+ * The `logs` command.
  * Reads a build log, matches known error patterns, prints a human report.
  * Pro: adds failure prediction, noise filtering, readiness score.
  */
-export async function analyzeCommand(logFile: string, options: {
+export async function logsCommand(logFile: string, options: {
   noise?: string;
   format?: string;
 } = {}): Promise<void> {
-  const license = await getLicenseEntitlements();
-
-  // ── Pro gate ──────────────────────────────────────────────────────
-  if (!license.canUseAnalyze) {
-    console.log('');
-    console.log(chalk.yellow('  [PRO FEATURE] Log analysis requires a Pro or Starter license.'));
-    console.log(chalk.dim('     Run: expo-ci-doctor login <KEY> to unlock.'));
-    console.log(chalk.dim('     Or set EXPO_CI_DOCTOR_KEY in CI.'));
-    console.log('');
-    process.exit(1);
-  }
 
   // ── Validate file ─────────────────────────────────────────────────
   if (!fs.existsSync(logFile)) {
@@ -66,9 +54,8 @@ export async function analyzeCommand(logFile: string, options: {
   if (!isMarkdown) {
     console.log('');
     console.log(
-      chalk.bold('  expo-ci-doctor analyze') +
-      chalk.dim(' · Build failure analysis') +
-      chalk.green(license.canUseProRules ? ' PRO' : ' STARTER')
+      chalk.bold('  expo-ci-doctor logs') +
+      chalk.dim(' · Build failure analysis')
     );
     console.log(chalk.dim(`  Log: ${logFile}`));
     if (noiseMode !== 'full') {
@@ -87,16 +74,9 @@ export async function analyzeCommand(logFile: string, options: {
 
   const allResults = matchPatterns(raw);
 
-  // ── Noise filter (Pro) ────────────────────────────────────────────
+  // ── Noise filter ──────────────────────────────────────────────────
   let displayResults: MatchResult[];
-  if (license.canUseProRules && noiseMode !== 'full') {
-    displayResults = filterByNoise(allResults, noiseMode);
-  } else {
-    displayResults = allResults;
-    if (noiseMode !== 'full' && !license.canUseProRules) {
-      console.log(chalk.yellow('\n  [PRO FEATURE] --noise filtering requires Pro. Showing all results.'));
-    }
-  }
+  displayResults = noiseMode !== 'full' ? filterByNoise(allResults, noiseMode) : allResults;
 
   spinner.stop();
 
@@ -105,8 +85,8 @@ export async function analyzeCommand(logFile: string, options: {
   const signalSummary = aggregateSignals(matchSignals);
   const readiness = computeReadinessScore(signalSummary);
 
-  // ── Failure prediction (Pro) ──────────────────────────────────────
-  const prediction = license.canUseProRules ? predictFailure(signalSummary) : null;
+  // ── Failure prediction ───────────────────────────────────────────────
+  const prediction = predictFailure(signalSummary);
 
   // ── Markdown output ───────────────────────────────────────────────
   if (isMarkdown) {
@@ -122,7 +102,6 @@ export async function analyzeCommand(logFile: string, options: {
       results: asRuleResults,
       readiness,
       prediction: prediction ?? undefined,
-      isPro: license.canUseProRules,
     });
     console.log(md);
     process.exit(displayResults.some(r => r.level === 'error') ? 2 : displayResults.length > 0 ? 1 : 0);
@@ -140,7 +119,7 @@ export async function analyzeCommand(logFile: string, options: {
   console.log(`\n  Build readiness: ${riskColor.bold(String(readiness.score))} / 100  ${chalk.dim(`Risk: ${readiness.risk}`)}`);
   console.log(chalk.dim(`  ${readiness.summary}`));
 
-  // ── Failure prediction (Pro) ──────────────────────────────────────
+  // ── Failure prediction ───────────────────────────────────────────────────
   if (prediction && prediction.confidence > 5) {
     console.log('');
     const predColor = prediction.likelihood === 'High' ? chalk.red
@@ -155,8 +134,6 @@ export async function analyzeCommand(logFile: string, options: {
     }
     console.log(chalk.dim(`  ${prediction.explanation}`));
     console.log(chalk.dim('  Note: this is a heuristic estimate, not a guarantee.'));
-  } else if (!license.canUseProRules) {
-    console.log(chalk.dim('\n  [PRO] Failure prediction available with a Pro license.'));
   }
 
   // ── No matches ─────────────────────────────────────────────────────

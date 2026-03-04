@@ -1,4 +1,4 @@
-import { fileExists, resolve } from '../core/context.js';
+import { fileExists, resolve } from '../utils/context.js';
 
 // ─── Output shape ───────────────────────────────────────────────────
 

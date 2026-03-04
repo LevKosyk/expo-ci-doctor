@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 import chalk from 'chalk';
-import { getCwd } from '../core/context.js';
+import { getCwd } from '../utils/context.js';
 import { detectProject } from '../detectors/project.js';
 
 /**

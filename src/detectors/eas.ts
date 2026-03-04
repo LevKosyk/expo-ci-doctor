@@ -1,4 +1,4 @@
-import { readJsonSafe, resolve } from '../core/context.js';
+import { readJsonSafe, resolve } from '../utils/context.js';
 
 // ─── Output shape ───────────────────────────────────────────────────
 

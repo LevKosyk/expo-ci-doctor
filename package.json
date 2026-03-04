@@ -1,38 +1,56 @@
 {
     "name": "expo-ci-doctor",
-    "version": "0.1.0",
+    "version": "1.0.1",
     "description": "Predicts Expo / React Native CI and EAS Build problems before you run the build",
     "type": "module",
     "main": "./dist/index.js",
     "bin": {
         "expo-ci-doctor": "./dist/index.js"
     },
+    "files": [
+        "dist/**",
+        "README.md",
+        "LICENSE"
+    ],
     "scripts": {
-        "dev": "node --loader ts-node/esm src/index.ts",
-        "build": "tsc",
-        "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
+        "build": "tsc && chmod +x ./dist/index.js",
+        "postbuild": "chmod +x ./dist/index.js",
+        "prepublishOnly": "npm run build"
     },
+    "keywords": [
+        "expo",
+        "react-native",
+        "eas",
+        "ci",
+        "build",
+        "doctor",
+        "cli",
+        "diagnostics",
+        "preflight",
+        "github-actions"
+    ],
     "license": "MIT",
+    "publishConfig": {
+        "access": "public"
+    },
     "engines": {
         "node": ">=18.0.0"
     },
     "dependencies": {
+        "boxen": "^8.0.1",
         "chalk": "^5.4.1",
+        "cli-table3": "^0.6.5",
         "commander": "^12.1.0",
-        "js-yaml": "^4.1.1",
+        "gradient-string": "^3.0.0",
+        "inquirer": "^13.3.0",
         "ora": "^8.2.0",
-        "semver": "^7.6.3",
-        "zod": "^3.24.0"
+        "semver": "^7.6.3"
     },
     "devDependencies": {
-        "@jest/globals": "^30.2.0",
-        "@types/jest": "^30.0.0",
-        "@types/js-yaml": "^4.0.9",
+        "@types/gradient-string": "^1.1.6",
+        "@types/inquirer": "^9.0.9",
         "@types/node": "^20.17.0",
         "@types/semver": "^7.5.8",
-        "jest": "^30.2.0",
-        "ts-jest": "^29.4.6",
-        "ts-node": "^10.9.2",
         "typescript": "^5.7.0"
     }
 }

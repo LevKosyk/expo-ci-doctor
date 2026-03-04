@@ -1,12 +1,11 @@
 import chalk from 'chalk';
-import type { RuleResult, RuleLevel } from '../core/types.js';
+import type { RuleResult, RuleLevel } from '../utils/types.js';
 
 export type OutputMode = 'default' | 'ci' | 'ci-summary' | 'json' | 'json-full';
 
 export interface FormatOptions {
   mode: OutputMode;
   severity?: RuleLevel;
-  skippedPro?: number;
 }
 
 const SEVERITY_WEIGHT: Record<RuleLevel, number> = {
@@ -21,11 +20,13 @@ export function filterBySeverity(results: RuleResult[], minSeverity?: RuleLevel)
   return results.filter(r => SEVERITY_WEIGHT[r.level] >= minWeight);
 }
 
+import { icons } from '../utils/logger.js';
+
 function getLevelIconColor(level: RuleLevel) {
   switch (level) {
-    case 'error': return chalk.red('✖');
-    case 'warn': return chalk.yellow('⚠');
-    case 'info': return chalk.blue('ℹ');
+    case 'error': return icons.error;
+    case 'warn': return icons.warning;
+    case 'info': return icons.info;
   }
 }
 
@@ -63,7 +64,7 @@ export function printResults(results: RuleResult[], options: FormatOptions) {
   
   if (options.mode === 'json' || options.mode === 'json-full') {
     const out = options.mode === 'json-full' 
-      ? { results: filtered, skippedPro: options.skippedPro, total: filtered.length }
+      ? { results: filtered, total: filtered.length }
       : filtered.map(r => ({ id: r.id, level: r.level, title: r.title }));
     console.log(JSON.stringify(out, null, 2));
     return;
@@ -87,9 +88,6 @@ export function printResults(results: RuleResult[], options: FormatOptions) {
     console.log(chalk.underline(`\nFound ${filtered.length} issue(s):`));
     for (const r of filtered) {
       formatResultDefault(r);
-    }
-    if (options.skippedPro && options.skippedPro > 0) {
-      console.log(chalk.dim(`\n...and ${options.skippedPro} Pro-only checks were skipped.`));
     }
   } else if (options.mode === 'ci') {
     for (const r of filtered) {

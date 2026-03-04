@@ -1,6 +1,5 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as yaml from 'js-yaml';
 
 /**
  * Reads and parses a JSON file. Returns null if file doesn't exist or can't be parsed.
@@ -10,19 +9,6 @@ export function readJsonSafe(filePath: string): Record<string, unknown> | null {
     if (!fs.existsSync(filePath)) return null;
     const raw = fs.readFileSync(filePath, 'utf-8');
     return JSON.parse(raw) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Reads and parses a YAML file. Returns null if file doesn't exist or can't be parsed.
- */
-export function readYamlSafe(filePath: string): Record<string, unknown> | null {
-  try {
-    if (!fs.existsSync(filePath)) return null;
-    const raw = fs.readFileSync(filePath, 'utf-8');
-    return yaml.load(raw) as Record<string, unknown>;
   } catch {
     return null;
   }

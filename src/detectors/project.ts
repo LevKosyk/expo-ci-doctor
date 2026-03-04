@@ -1,8 +1,8 @@
-import { readJsonSafe, readTextSafe, fileExists, resolve } from '../core/context.js';
+import { readJsonSafe, readTextSafe, fileExists, resolve } from '../utils/context.js';
 import { detectCI } from './ci.js';
 import { detectLockfile } from './lockfile.js';
 import { detectEas } from './eas.js';
-import type { ProjectInfo } from '../core/types.js';
+import type { ProjectInfo } from '../utils/types.js';
 
 /**
  * Scans the working directory and collects all project information

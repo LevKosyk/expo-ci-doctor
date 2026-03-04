@@ -1,4 +1,4 @@
-import type { SignalSummary } from './signals.js';
+import type { SignalSummary } from '../analyzers/signals.js';
 
 export type RiskLevel = 'Low' | 'Medium' | 'High';
 

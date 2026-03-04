@@ -1,17 +1,17 @@
 import ora from 'ora';
 import chalk from 'chalk';
-import { getCwd } from '../core/context.js';
-import { getLicenseEntitlements } from '../core/license-entitlements.js';
-import { loadConfig } from '../core/config.js';
+import { getCwd } from '../utils/context.js';
+import { loadConfig } from '../utils/config-loader.js';
 import { detectProject } from '../detectors/project.js';
-import { runRules, exitCode } from '../rules/rules.js';
-import { printResults, type OutputMode } from '../output/formatter.js';
-import { renderMarkdown } from '../output/markdown.js';
-import { computeSignalsFromRules, aggregateSignals } from '../analysis/signals.js';
-import { computeReadinessScore } from '../analysis/readiness.js';
-import { parseUpgradeTarget, generateUpgradeSafetyReport } from '../analysis/upgrade.js';
+import { runRules, exitCode } from '../analyzers/index.js';
+import { printResults, type OutputMode } from '../reporters/terminal-reporter.js';
+import { renderMarkdown } from '../reporters/markdown-reporter.js';
+import { computeSignalsFromRules, aggregateSignals } from '../analyzers/signals.js';
+import { computeReadinessScore } from '../utils/score-calculator.js';
+import { parseUpgradeTarget, generateUpgradeSafetyReport } from '../analyzers/upgrade.js';
 import { emitGitHubAnnotations } from '../ci/github-actions.js';
-import type { RulePack, RuleLevel } from '../core/types.js';
+import type { RulePack, RuleLevel } from '../utils/types.js';
+import { printTitle, createSpinner, drawBox, icons, colors } from '../utils/logger.js';
 
 /**
  * The `check` command.
@@ -29,7 +29,6 @@ export async function checkCommand(options: {
   upgrade?: string;
 } = {}): Promise<void> {
   const cwd = getCwd();
-  const license = await getLicenseEntitlements();
   const config = loadConfig(cwd);
 
   const isJson = options.json || options.jsonFull;
@@ -43,18 +42,13 @@ export async function checkCommand(options: {
   else if (options.ci) outputMode = 'ci';
 
   if (!isJson && !isMarkdown) {
-    console.log('');
-    console.log(
-      chalk.bold('  expo-ci-doctor check') +
-      chalk.dim(' · CI / EAS Build diagnostics') +
-      (license.canUseProRules ? chalk.green(' PRO') : chalk.dim(' FREE'))
-    );
-    console.log(chalk.dim(`  ${cwd}`));
+    printTitle('expo-ci-doctor check');
+    console.log(colors.dim(`  ${cwd}`));
   }
 
-  let spinner: ReturnType<typeof ora> | null = null;
+  let spinner = null;
   if (!isJson && !isMarkdown) {
-    spinner = ora({ text: 'Scanning project…', color: 'cyan', indent: 2 }).start();
+    spinner = createSpinner('Scanning project…').start();
     await delay(300);
   }
 
@@ -75,8 +69,7 @@ export async function checkCommand(options: {
     await delay(200);
   }
 
-  const { results, skippedPro } = runRules(info, {
-    isPro: license.canUseProRules,
+  const { results } = runRules(info, {
     pack: options.pack as RulePack | undefined,
     ciStrict: options.ciStrict,
     config,
@@ -85,25 +78,22 @@ export async function checkCommand(options: {
 
   if (spinner) spinner.stop();
 
-  // ── Upgrade Safety Report (Pro) ─────────────────────────────────
+  // ── Upgrade Safety Report ─────────────────────────────────────────
   if (options.upgrade) {
-    if (!license.canUseProRules) {
-      console.log(chalk.yellow('\n  [PRO FEATURE] --upgrade is a Pro-only feature. Run: expo-ci-doctor login <key>'));
-    } else {
-      const target = parseUpgradeTarget(options.upgrade, {
-        ...info.dependencies,
-        ...info.devDependencies,
-      });
-      const report = generateUpgradeSafetyReport(target, {
-        ...info.dependencies,
-        ...info.devDependencies,
-      }, info.enginesNode);
+    const target = parseUpgradeTarget(options.upgrade, {
+      ...info.dependencies,
+      ...info.devDependencies,
+    });
+    const report = generateUpgradeSafetyReport(target, {
+      ...info.dependencies,
+      ...info.devDependencies,
+    }, info.enginesNode);
 
-      const from = target.fromVersion ?? 'unknown';
-      const to   = target.toVersion;
-      console.log('');
-      console.log(chalk.bold(`  Upgrade safety report: ${target.package} ${from} → ${to}`));
-      console.log(chalk.dim('  ────────────────────────────────────────────'));
+    const from = target.fromVersion ?? 'unknown';
+    const to   = target.toVersion;
+    console.log('');
+    console.log(chalk.bold(`  Upgrade safety report: ${target.package} ${from} → ${to}`));
+    console.log(chalk.dim('  ────────────────────────────────────────────'));
 
       if (report.safe.length > 0) {
         console.log(chalk.green('\n  Safe:'));
@@ -132,10 +122,9 @@ export async function checkCommand(options: {
         : report.risky.length > 0 ? chalk.yellow : chalk.green;
       console.log(summaryColor(`  ${report.summary}`));
       console.log('');
-    }
   }
 
-  // ── Build Readiness Score (Starter + Pro) ─────────────────────────
+  // ── Build Readiness Score ─────────────────────────────────────────
   const signals = computeSignalsFromRules(results);
   const signalSummary = aggregateSignals(signals);
   const readiness = computeReadinessScore(signalSummary);
@@ -146,7 +135,6 @@ export async function checkCommand(options: {
       results,
       readiness,
       projectPath: cwd,
-      isPro: license.canUseProRules,
     });
     console.log(md);
     process.exit(code);
@@ -155,7 +143,7 @@ export async function checkCommand(options: {
   // ── JSON output ───────────────────────────────────────────────────
   if (isJson) {
     const out = options.jsonFull
-      ? { results, skippedPro, total: results.length, readiness }
+      ? { results, total: results.length, readiness }
       : results.map(r => ({ id: r.id, level: r.level, title: r.title }));
     console.log(JSON.stringify(out, null, 2));
     process.exit(code);
@@ -165,31 +153,42 @@ export async function checkCommand(options: {
   printResults(results, {
     mode: outputMode,
     severity: options.severity as RuleLevel | undefined,
-    skippedPro,
   });
 
   // ── Readiness Score ───────────────────────────────────────────────
   if (outputMode === 'default' || outputMode === 'ci') {
-    console.log('');
-    const riskColor = readiness.risk === 'High' ? chalk.red
-      : readiness.risk === 'Medium' ? chalk.yellow : chalk.green;
-    console.log(
-      `  Build readiness: ${riskColor.bold(String(readiness.score))} / 100` +
-      chalk.dim(`  Risk: ${readiness.risk}`)
-    );
-    if (outputMode === 'default' && readiness.breakdown.length > 0) {
-      console.log(chalk.dim(`  ${readiness.summary}`));
+    const riskColor = readiness.risk === 'High' ? colors.error
+      : readiness.risk === 'Medium' ? colors.warning : colors.success;
+      
+    const scoreColor = (score: number) => 
+      score >= 80 ? colors.success(score) : 
+      score >= 50 ? colors.warning(score) : 
+      colors.error(score);
+      
+    if (outputMode === 'default') {
+      let content = `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+      
+      const detailsCount = readiness.breakdown.length;
+      if (detailsCount > 0) {
+        readiness.breakdown.forEach(b => {
+           content += ` ${b}\n`;
+        });
+        content += `\n`;
+      }
+      
+      content += ` Score: ${scoreColor(readiness.score)} / 100\n`;
+      content += ` Risk:  ${riskColor(readiness.risk)}\n`;
+      content += `\n ${colors.dim(readiness.summary)}`;
+      
+      const boxStyle = readiness.risk === 'High' ? 'error' : readiness.risk === 'Medium' ? 'warning' : 'success';
+      console.log('\n' + drawBox('Project Health Score', content, boxStyle));
+    } else {
+      console.log(`\n  Project Health Score: ${readiness.score}/100 (Risk: ${readiness.risk})\n`);
     }
-    console.log('');
   }
 
   // ── GitHub Actions annotations ────────────────────────────────────
   emitGitHubAnnotations(results);
-
-  if (!isJson && skippedPro > 0) {
-    console.log(chalk.dim(`  🔒 ${skippedPro} Pro rule${skippedPro > 1 ? 's' : ''} skipped. Run: expo-ci-doctor login <KEY> to unlock.`));
-    console.log('');
-  }
 
   if (!isJson && info.isMonorepo) {
     console.log(chalk.dim('  📦 Monorepo detected. Run from a workspace root for deeper analysis.'));

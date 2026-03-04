@@ -1,4 +1,4 @@
-import type { RuleResult } from '../core/types.js';
+import type { RuleResult } from '../utils/types.js';
 import type { MatchResult } from '../analyzers/matcher.js';
 
 /**

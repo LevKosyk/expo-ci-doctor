@@ -1,5 +1,5 @@
 import * as path from 'node:path';
-import { readYamlSafe, findFilesByExt, resolve } from '../core/context.js';
+import { readTextSafe, findFilesByExt, resolve } from '../utils/context.js';
 
 // ─── Output shape ───────────────────────────────────────────────────
 
@@ -35,10 +35,9 @@ export function detectCI(cwd: string): CIInfo {
   const workflows: WorkflowInfo[] = [];
 
   for (const file of ymlFiles) {
-    const raw = readYamlSafe(file);
-    if (!raw) continue;
+    const content = readTextSafe(file);
+    if (!content) continue;
 
-    const content = JSON.stringify(raw);
     const filename = path.basename(file);
 
     // ── setup-node ────────────────────────────────────────────────

@@ -1,8 +1,7 @@
 import * as fs from 'node:fs';
 import chalk from 'chalk';
-import { getCwd } from '../core/context.js';
+import { getCwd } from '../utils/context.js';
 import { detectProject } from '../detectors/project.js';
-import { requireProFeature } from '../core/license-entitlements.js';
 
 interface Snapshot {
   timestamp: string;
@@ -41,8 +40,6 @@ interface DiffItem {
  * Compares the current project state against a saved snapshot.
  */
 export async function diffCommand(snapshotFile: string): Promise<void> {
-  await requireProFeature('diff');
-
   if (!fs.existsSync(snapshotFile)) {
     console.error(chalk.red(`\n  ✖  Snapshot not found: ${snapshotFile}\n`));
     process.exit(2);
@@ -53,7 +50,7 @@ export async function diffCommand(snapshotFile: string): Promise<void> {
   const info = detectProject(cwd);
 
   console.log('');
-  console.log(chalk.bold('  expo-ci-doctor diff') + chalk.dim(' · Snapshot comparison') + chalk.green(' PRO'));
+  console.log(chalk.bold('  expo-ci-doctor diff') + chalk.dim(' · Snapshot comparison'));
   console.log(chalk.dim(`  Snapshot: ${snapshotFile} (${old.timestamp})`));
   console.log('');
 

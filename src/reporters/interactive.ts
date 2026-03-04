@@ -10,10 +10,9 @@ interface InteractiveChoice {
 const CHOICES: InteractiveChoice[] = [
   { label: 'check',     command: 'check',     description: 'Scan project for CI/EAS build issues' },
   { label: 'doctor',    command: 'doctor',    description: 'Full diagnostic with verdict and fix recipes' },
-  { label: 'analyze',   command: 'analyze',   description: 'Analyze a CI/EAS build log file for failures' },
-  { label: 'preflight', command: 'preflight', description: 'Ultra-fast CI-breaking check (Pro)' },
-  { label: 'diff',      command: 'diff',      description: 'Compare project against a saved snapshot (Pro)' },
-  { label: 'whoami',    command: 'whoami',    description: 'Show current license status' },
+  { label: 'logs',      command: 'logs',      description: 'Analyze a CI/EAS build log file for failures' },
+  { label: 'preflight', command: 'preflight', description: 'Ultra-fast CI-breaking check' },
+  { label: 'diff',      command: 'diff',      description: 'Compare project against a saved snapshot' },
   { label: 'exit',      command: 'exit',      description: 'Exit' },
 ];
 

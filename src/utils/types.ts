@@ -1,28 +1,25 @@
-import { z } from 'zod';
 import type { CIInfo } from '../detectors/ci.js';
 import type { DepsInfo } from '../detectors/lockfile.js';
 import type { EasInfo } from '../detectors/eas.js';
 
-// ─── Schemas ────────────────────────────────────────────────────────
+// ─── Core types ─────────────────────────────────────────────────────
 
-export const RuleLevelSchema = z.enum(['info', 'warn', 'error']);
-export type RuleLevel = z.infer<typeof RuleLevelSchema>;
+export type RuleLevel = 'info' | 'warn' | 'error';
 
-export const RuleResultSchema = z.object({
-  id: z.string(),
-  level: RuleLevelSchema,
-  title: z.string(),
-  details: z.string(),
-  fix: z.string().optional(),
-  filePointer: z.string().optional(),
-  hints: z.object({
-    what: z.string().optional(),
-    why: z.string().optional(),
-    where: z.string().optional(),
-    when: z.string().optional(),
-  }).optional(),
-});
-export type RuleResult = z.infer<typeof RuleResultSchema>;
+export interface RuleResult {
+  id: string;
+  level: RuleLevel;
+  title: string;
+  details: string;
+  fix?: string;
+  filePointer?: string;
+  hints?: {
+    what?: string;
+    why?: string;
+    where?: string;
+    when?: string;
+  };
+}
 
 // ─── Rule packs ─────────────────────────────────────────────────────
 
@@ -50,13 +47,11 @@ export interface ProjectInfo {
   hasAppConfigTs: boolean;
   hasEasJson: boolean;
 
-  // Day 2
   nvmrcVersion: string | undefined;
   ci: CIInfo;
   deps: DepsInfo;
   eas: EasInfo;
 
-  // Day 5
   isMonorepo: boolean;
   monorepoRoot?: string;
 }
@@ -67,7 +62,6 @@ export interface Rule {
   id: string;
   pack: RulePack;
   category: RuleCategory;
-  requiresPro?: boolean;
   /** Detailed explanation for `explain` command */
   explain?: string;
   run(info: ProjectInfo): RuleResult[];

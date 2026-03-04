@@ -1,4 +1,4 @@
-import type { RuleLevel } from '../core/types.js';
+import type { RuleLevel } from '../utils/types.js';
 import { allPatterns } from './patterns.js';
 import type { Confidence } from './patterns.js';
 

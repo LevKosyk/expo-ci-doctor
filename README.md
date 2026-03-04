@@ -1,243 +1,239 @@
-# expo-ci-doctor
+# Expo CI Doctor
 
-> Predict and explain Expo / React Native CI & EAS build failures **before** you waste 20 minutes on a broken build.
+A powerful CLI tool that helps Expo & React Native developers detect, analyze, and prevent CI and EAS build failures before they waste time.
 
-`expo-ci-doctor` is a CLI tool for **Expo / React Native developers** that helps you:
-- detect CI / EAS build issues **before running a build**
-- understand **why a build failed** after it breaks
-- run the same checks locally and in CI
-- avoid endless debugging, retries, and guesswork
-
-No macOS build servers.  
-No IDE plugins.  
-Just a fast, focused CLI.
+No telemetry.  
+No cloud processing.  
+Runs locally and in CI.
 
 ---
 
-## Why this exists
+## ✨ Why Expo CI Doctor?
 
-If you work with Expo or React Native, you’ve seen this:
+CI failures are expensive.
 
-- works locally → fails in CI  
-- build fails after 15–30 minutes  
-- error message is unclear  
-- Google + StackOverflow = chaos  
+You push → GitHub Actions runs → EAS builds → 10 minutes later… ❌ failed.
 
-`expo-ci-doctor` solves this by answering two questions:
+Expo CI Doctor analyzes your project before CI does and gives you:
 
-> **Will my build fail?**  
-> **If it failed, why exactly did it fail and how do I fix it?**
+- Clear root-cause diagnostics  
+- File-level pointers  
+- Dependency compatibility warnings  
+- Upgrade safety checks  
+- Build readiness scoring  
+- Noise filtering for CI logs  
 
 ---
 
-## Installation
-
-### Run instantly (recommended)
-
-```bash
-npx expo-ci-doctor check
-```
+## 🚀 Installation
 
 ### Global install
 
 ```bash
 npm install -g expo-ci-doctor
-expo-ci-doctor check
+```
+
+### Or run directly
+
+```bash
+npx expo-ci-doctor@latest check
 ```
 
 ---
 
-## Commands
+## ⚡ Quick Start (5 minutes)
 
-### `check` — predict CI / EAS failures
+1. Install the CLI
+2. Run:
 
 ```bash
 expo-ci-doctor check
 ```
 
-Scans your project and detects common Expo / RN CI issues:
-- Node version mismatch (local vs CI)
-- missing or inconsistent lockfiles
-- Expo SDK ↔ React Native incompatibilities
-- EAS profile and configuration errors
-- missing CI environment variables
-- CI workflow misconfiguration
-
-#### JSON output (for CI)
-
-```bash
-expo-ci-doctor check --json
-```
-
-#### CI strict mode (PRO)
-
-```bash
-expo-ci-doctor check --ci-strict
-```
-
-In strict mode, warnings are treated as errors and will fail the CI job.
+3. Review actionable output before pushing to CI
 
 ---
 
-### `analyze` — explain build failures
+## 🧪 Example Output
 
-```bash
-expo-ci-doctor analyze build.log
+### ❌ Before
+
+```
+EAS Build failed.
 ```
 
-Analyzes Expo / EAS / CI logs and explains:
-- what went wrong
-- why the build failed
-- how to fix the issue
+### ✅ After Expo CI Doctor
 
-Supported categories include:
-- Expo / EAS authentication errors
-- iOS code signing & provisioning
-- Android keystore / Gradle failures
-- Node / environment mismatches
-
----
-
-### `doctor` (PRO)
-
-```bash
-expo-ci-doctor doctor
 ```
+✔ Dependency compatibility: OK
+⚠ Expo SDK mismatch detected
 
-Runs a full diagnostic:
-- project preflight check
-- optional log analysis
-- final verdict:
+Root cause:
+- expo-updates is incompatible with SDK 51
 
-- ✅ SAFE TO BUILD  
-- ⚠ HIGH RISK  
-- ❌ WILL FAIL  
+Location:
+- app.config.ts:42
 
-Designed as a “last check” before running a CI build.
+Suggested fix:
+- Upgrade expo-updates to ^0.20.0
 
----
-
-### `explain` (PRO)
-
-```bash
-expo-ci-doctor explain <rule-id>
-```
-
-Explains a specific rule in detail:
-- why it causes CI failures
-- real-world scenarios
-- step-by-step fixes
-
-Think of it as StackOverflow, directly in your terminal.
-
----
-
-### `snapshot` (PRO)
-
-```bash
-expo-ci-doctor snapshot
-```
-
-Creates a snapshot of your project configuration:
-- dependencies
-- versions
-- Expo / EAS config
-- CI setup
-
-Useful for debugging “it worked yesterday” issues.
-
----
-
-### `diff` (PRO)
-
-```bash
-expo-ci-doctor diff snapshot.json
-```
-
-Compares the current project state with a previous snapshot and highlights:
-- configuration changes
-- dependency changes
-- potential CI breakpoints
-
----
-
-## Using in GitHub Actions
-
-Example GitHub Actions workflow:
-
-```yaml
-- name: Expo CI Doctor
-  run: npx expo-ci-doctor check --ci-strict
-```
-
-### With Pro license
-
-```yaml
-- name: Expo CI Doctor
-  run: npx expo-ci-doctor check --ci-strict
-  env:
-    EXPO_CI_DOCTOR_KEY: ${{ secrets.EXPO_CI_DOCTOR_KEY }}
-```
-
-Exit codes:
-- `0` — no issues
-- `1` — warnings
-- `2` — errors (fail CI)
-
----
-
-## Free vs Pro
-
-### Free
-- basic project checks
-- limited rules
-- basic log analysis
-- local usage
-
-### Pro
-- all CI-specific rules
-- `doctor` command
-- strict CI mode
-- advanced log analysis
-- rule explanations
-- project snapshots & diff
-- monorepo support
-- rule packs (EAS, GitHub Actions, SDK upgrades)
-
----
-
-## License activation (Pro)
-
-```bash
-expo-ci-doctor login <LICENSE_KEY>
-```
-
-For CI:
-
-```bash
-export EXPO_CI_DOCTOR_KEY=your_key_here
-```
-
-To remove local license:
-
-```bash
-expo-ci-doctor logout
+Build Readiness Score: 72 / 100 (Medium Risk)
 ```
 
 ---
 
-## Philosophy
+## 📦 Core Commands
 
-`expo-ci-doctor` does **not** build your app.  
-It tells you **why your build will fail** — or already failed.
+### Check project configuration
 
-> Less guessing.  
-> Fewer retries.  
-> More predictable releases.
+```bash
+expo-ci-doctor check
+```
+
+Validates:
+- app.json / app.config.js
+- SDK compatibility
+- Dependency alignment
+- Known CI pitfalls
 
 ---
 
-## Status
+### Deep analysis
 
-This project is under active development.  
-Feedback and real-world CI failures are highly appreciated.
+```bash
+expo-ci-doctor analyze
+```
+
+Performs:
+- Root cause grouping
+- Stage-based failure detection
+- Risk ranking
+- Context-aware diagnostics
+
+---
+
+### Generate CI-friendly Markdown report
+
+```bash
+expo-ci-doctor analyze --markdown
+```
+
+Outputs structured Markdown ready for GitHub Actions logs or PR comments.
+
+---
+
+### Upgrade safety check
+
+```bash
+expo-ci-doctor check --upgrade
+```
+
+Simulates upgrade risk before bumping Expo SDK or dependencies.
+
+---
+
+### Build readiness score
+
+```bash
+expo-ci-doctor check --score
+```
+
+Returns:
+
+- Risk rating
+- Stability score
+- Recommended actions
+
+---
+
+### CI noise filter
+
+```bash
+expo-ci-doctor analyze --noise=low
+```
+
+Reduces noisy logs and surfaces actionable issues only.
+
+---
+
+## 🛠 Configuration
+
+Create `.expo-ci-doctorrc` in your project root:
+
+```json
+{
+  "ignoreWarnings": ["expo-asset-mismatch"],
+  "ciMode": true,
+  "output": "standard"
+}
+```
+
+---
+
+## 🔍 What It Analyzes
+
+- Expo SDK compatibility
+- EAS build config
+- app.json / app.config.ts
+- Native dependency mismatches
+- Version alignment
+- Known breaking changes
+- CI environment patterns
+
+---
+
+## 🧠 How It Works
+
+Expo CI Doctor uses deterministic rule-based analysis:
+
+- Static configuration validation
+- Dependency compatibility graph checks
+- Heuristic CI failure pattern detection
+- Risk scoring based on known failure signals
+
+No source code is uploaded.  
+Everything runs locally unless you run it inside CI.
+
+---
+
+## 🔐 Security & Privacy
+
+- No telemetry
+- No analytics tracking inside CLI
+- No source code uploads
+- No cloud dependency required
+
+Safe for local development and CI environments.
+
+---
+
+## 📈 Typical Use Cases
+
+- Before pushing to GitHub
+- Before upgrading Expo SDK
+- Debugging EAS failures
+- Adding CI safety checks to pipelines
+- Preventing repetitive build crashes
+
+---
+
+## 🤝 Contributing
+
+Pull requests are welcome.
+
+If you find a CI pattern that should be detected, open an issue with:
+- Expo SDK version
+- Relevant config
+- Error output (sanitized)
+
+---
+
+## 📜 License
+
+MIT
+
+---
+
+## ⭐ If This Saves You Time
+
+Star the repository and share it with other Expo developers.

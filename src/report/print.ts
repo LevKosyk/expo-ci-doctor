@@ -1,7 +1,7 @@
 import chalk from 'chalk';
-import type { RuleResult, RuleCategory } from '../core/types.js';
-import { CATEGORY_ORDER } from '../core/types.js';
-import { ruleCategory } from '../rules/rules.js';
+import type { RuleResult, RuleCategory } from '../utils/types.js';
+import { CATEGORY_ORDER } from '../utils/types.js';
+import { ruleCategory } from '../analyzers/index.js';
 
 const ICON = {
   error: chalk.red('✖'),
