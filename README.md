@@ -10,7 +10,7 @@ Runs locally and in CI.
 
 ---
 
-## ✨ Why Expo CI Doctor?
+## Why Expo CI Doctor?
 
 CI failures are expensive.
 
@@ -27,11 +27,11 @@ Expo CI Doctor analyzes your project before CI does and gives you:
 
 It also provides trend tracking, PR-ready summaries, safer auto-fixes, and script-friendly output for automation.
 
-## 📚 Documentation
+## Documentation
 
 Full documentation, guides, and release notes live at [expocidoctor.dev](https://www.expocidoctor.dev/).
 
-## 🆕 What's New in 1.0.3
+## What's New in 1.0.3
 
 - Added dependency bloat and risk detection for stale, duplicated, and oversized package sets.
 - Added packageManager field drift checks to catch lockfile and Corepack mismatches.
@@ -48,7 +48,7 @@ Release files:
 
 ---
 
-## 🚀 Installation
+## Installation
 
 ### Global install
 
@@ -77,15 +77,15 @@ expo-ci-doctor check
 
 ---
 
-## 🧪 Example Output
+## Example Output
 
-### ❌ Before
+### Before
 
 ```
 EAS Build failed.
 ```
 
-### ✅ After Expo CI Doctor
+### After Expo CI Doctor
 
 ```
 ✔ Dependency compatibility: OK
@@ -105,7 +105,7 @@ Build Readiness Score: 72 / 100 (Medium Risk)
 
 ---
 
-## 📦 Core Commands
+## Core Commands
 
 These are the most useful commands for day-to-day work.
 
@@ -280,7 +280,7 @@ expo-ci-doctor check --summary --output report.md --version-check off
 
 ---
 
-## 🛠 Configuration
+## Configuration
 
 Create `.expo-ci-doctorrc` in your project root:
 
