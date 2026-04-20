@@ -3,7 +3,7 @@
 Release date: 2026-04-20
 
 ## Overview
-Version 1.0.3 adds workspace-level visibility, stronger package-manager drift detection, and a more actionable upgrade flow.
+Version 1.0.3 adds workspace-level visibility, stronger package-manager drift detection, a more actionable upgrade flow, and modernizes the build system with tsup for faster, minified distribution.
 
 ## What was added
 
@@ -21,17 +21,26 @@ Version 1.0.3 adds workspace-level visibility, stronger package-manager drift de
 ### 3) Upgrade checklist
 - Improved `upgrade-plan` with an ordered migration checklist.
 - The checklist now covers:
-	- Expo SDK upgrade order
-	- Expo-managed package realignment
-	- Node and CI runtime alignment
-	- EAS CLI update guidance
-	- Final verification steps
+  - Expo SDK upgrade order
+  - Expo-managed package realignment
+  - Node and CI runtime alignment
+  - EAS CLI update guidance
+  - Final verification steps
 
 ### 4) Validation coverage
 - Added regression tests for the package manager drift rule.
 - Kept the new feature set validated with the existing build and test flow.
 
+### 5) Build system modernization
+- Switched build system from tsc to tsup.
+- Added `dev` script for faster watch-mode development.
+- Added `test` script using Node's native test runner.
+- All CLI dependencies now in devDependencies (cleaner package structure).
+- Output is now minified by default, reducing distribution size.
+
 ## Related quality upgrades
 - Better workspace-aware command structure for larger repos.
 - Clearer upgrade guidance for teams moving between Expo SDK versions.
 - Improved documentation so the new commands are discoverable.
+- Faster local development with tsup watch mode.
+- Better test discovery with Node's native test runner.
