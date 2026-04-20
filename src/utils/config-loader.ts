@@ -7,11 +7,31 @@ import type { RuleLevel } from './types.js';
 export interface DoctorConfig {
   rules: Record<string, 'off' | 'warn' | 'error'>;
   ignore: string[];
+  baselines: string[];
+  customRules: CustomRuleConfig[];
+  severityThresholds: Record<string, 'info' | 'warn' | 'error'>;
+}
+
+export interface CustomRuleConfig {
+  id: string;
+  title: string;
+  details?: string;
+  level?: 'warn' | 'error' | 'info';
+  fix?: string;
+  when: {
+    fileExists?: string;
+    fileMissing?: string;
+    packagePresent?: string;
+    packageMissing?: string;
+  };
 }
 
 const DEFAULT_CONFIG: DoctorConfig = {
   rules: {},
   ignore: [],
+  baselines: [],
+  customRules: [],
+  severityThresholds: {},
 };
 
 // ─── Load config ────────────────────────────────────────────────────
@@ -68,7 +88,51 @@ function mergeConfig(raw: Record<string, unknown>): DoctorConfig {
     }
   }
 
-  return { rules, ignore };
+  const baselines: string[] = [];
+  if (Array.isArray(raw.baselines)) {
+    for (const item of raw.baselines) {
+      if (typeof item === 'string') baselines.push(item);
+    }
+  }
+
+  const customRules: CustomRuleConfig[] = [];
+  if (Array.isArray(raw.customRules)) {
+    for (const entry of raw.customRules) {
+      if (!entry || typeof entry !== 'object') continue;
+      const e = entry as Record<string, unknown>;
+      if (typeof e.id !== 'string' || typeof e.title !== 'string') continue;
+      if (!e.when || typeof e.when !== 'object') continue;
+
+      const whenRaw = e.when as Record<string, unknown>;
+      const when: CustomRuleConfig['when'] = {};
+
+      if (typeof whenRaw.fileExists === 'string') when.fileExists = whenRaw.fileExists;
+      if (typeof whenRaw.fileMissing === 'string') when.fileMissing = whenRaw.fileMissing;
+      if (typeof whenRaw.packagePresent === 'string') when.packagePresent = whenRaw.packagePresent;
+      if (typeof whenRaw.packageMissing === 'string') when.packageMissing = whenRaw.packageMissing;
+
+      customRules.push({
+        id: e.id,
+        title: e.title,
+        details: typeof e.details === 'string' ? e.details : undefined,
+        level: e.level === 'error' || e.level === 'warn' || e.level === 'info' ? e.level : 'warn',
+        fix: typeof e.fix === 'string' ? e.fix : undefined,
+        when,
+      });
+    }
+  }
+
+  const severityThresholds: Record<string, 'info' | 'warn' | 'error'> = {};
+  const thresholdSource = raw.severityThresholds ?? raw.thresholds;
+  if (thresholdSource && typeof thresholdSource === 'object') {
+    for (const [key, val] of Object.entries(thresholdSource as Record<string, string>)) {
+      if (val === 'info' || val === 'warn' || val === 'error') {
+        severityThresholds[key] = val;
+      }
+    }
+  }
+
+  return { rules, ignore, baselines, customRules, severityThresholds };
 }
 
 /**

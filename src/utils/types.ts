@@ -28,8 +28,8 @@ export const ALL_PACKS: RulePack[] = ['core', 'github-actions', 'eas', 'sdk-upgr
 
 // ─── Rule categories ────────────────────────────────────────────────
 
-export type RuleCategory = 'Node' | 'CI' | 'Dependencies' | 'Expo' | 'EAS' | 'Config';
-export const CATEGORY_ORDER: RuleCategory[] = ['Expo', 'EAS', 'Config', 'Node', 'Dependencies', 'CI'];
+export type RuleCategory = 'Node' | 'CI' | 'Dependencies' | 'Expo' | 'EAS' | 'Config' | 'Plugins' | 'Native';
+export const CATEGORY_ORDER: RuleCategory[] = ['Expo', 'Plugins', 'Native', 'EAS', 'Config', 'Node', 'Dependencies', 'CI'];
 
 // ─── Project info collected by detectors ────────────────────────────
 

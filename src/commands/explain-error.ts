@@ -33,6 +33,7 @@ export async function explainErrorCommand(): Promise<void> {
 
   // Display the top match as the primary explanation
   const topMatch = matches[0];
+  const alternatives = matches.slice(1, 3);
 
   console.log('\n' + chalk.bold('Detected issue:'));
   console.log(chalk.red(`\n${topMatch.title}\n`));
@@ -42,4 +43,18 @@ export async function explainErrorCommand(): Promise<void> {
 
   console.log(chalk.bold('Suggested fix:'));
   console.log(`\n${chalk.green(topMatch.fix)}\n`);
+
+  if (alternatives.length > 0) {
+    console.log(chalk.bold('Also check:'));
+    for (const alt of alternatives) {
+      console.log(`  ${icons.warning} ${alt.title}`);
+    }
+    console.log('');
+  }
+
+  console.log(chalk.bold('Next actions:'));
+  console.log(`  1) Fix the primary issue first: ${topMatch.id}`);
+  console.log('  2) Re-run your build in CI to confirm the error class changed');
+  console.log('  3) If still failing, paste a longer log segment into this command');
+  console.log('');
 }

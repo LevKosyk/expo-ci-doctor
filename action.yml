@@ -1,0 +1,42 @@
+name: 'Expo CI Doctor Check'
+description: 'Predicts Expo / React Native CI and EAS Build problems before you run the build'
+branding:
+  icon: 'activity'
+  color: 'blue'
+
+inputs:
+  summary:
+    description: 'Output a one-screen summary'
+    required: false
+    default: 'true'
+  fail-on:
+    description: 'Fail on findings at or above this severity: info | warn | error'
+    required: false
+    default: 'warn'
+  ci-strict:
+    description: 'Treat warnings as errors (for CI pipelines)'
+    required: false
+    default: 'false'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Run Expo CI Doctor
+      run: |
+        CMD="npx expo-ci-doctor@latest check --ci"
+        
+        if [ "${{ inputs.summary }}" == "true" ]; then
+          CMD="$CMD --summary"
+        fi
+        
+        if [ "${{ inputs['fail-on'] }}" != "" ]; then
+          CMD="$CMD --fail-on ${{ inputs['fail-on'] }}"
+        fi
+        
+        if [ "${{ inputs['ci-strict'] }}" == "true" ]; then
+          CMD="$CMD --ci-strict"
+        fi
+        
+        echo "Running: $CMD"
+        $CMD
+      shell: bash

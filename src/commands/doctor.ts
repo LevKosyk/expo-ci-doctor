@@ -9,23 +9,32 @@ import { computeSignalsFromRules, aggregateSignals } from '../analyzers/signals.
 import { computeReadinessScore } from '../utils/score-calculator.js';
 import type { RuleResult } from '../utils/types.js';
 import { fixCommand } from './fix.js';
+import { finalLine, getRuntime, verboseLog } from '../utils/runtime.js';
+import { resolveCommandThreshold } from '../utils/severity.js';
 
-export async function doctorCommand(options: { fix?: boolean } = {}): Promise<void> {
+export async function doctorCommand(options: { fix?: boolean; failOn?: string } = {}): Promise<void> {
   const cwd = getCwd();
   const config = loadConfig(cwd);
+  const runtime = getRuntime();
   
-  printTitle('Expo CI Doctor');
-  console.log(colors.dim(`  ${cwd}\n`));
-  console.log('Running project audit...\n');
+  if (!runtime.silent) {
+    printTitle('Expo CI Doctor');
+    console.log(colors.dim(`  ${cwd}\n`));
+    console.log('Running project audit...\n');
+  }
+
+  verboseLog(`doctor cwd=${cwd}`);
 
   const info = detectProject(cwd);
 
   if (!info.hasPackageJson) {
-    console.log(colors.error('  ✖ No package.json found.'));
+    if (!runtime.silent) console.log(colors.error('  ✖ No package.json found.'));
+    else finalLine('DOCTOR FAIL no package.json found');
     process.exit(2);
   }
 
   const { results } = runRules(info, { config });
+  verboseLog(`doctor results=${results.length}`);
   
   // Categorize for the check summary
   const checks = [
@@ -46,29 +55,35 @@ export async function doctorCommand(options: { fix?: boolean } = {}): Promise<vo
     const hasError = relevantResults.some(r => r.level === 'error');
     const hasWarn = relevantResults.some(r => r.level === 'warn');
     
-    if (hasError) console.log(`  ${icons.error} ${check.name} mismatch`);
-    else if (hasWarn) console.log(`  ${icons.warning} ${check.name} issues`);
-    else console.log(`  ${icons.success} ${check.name}`);
+    if (!runtime.silent) {
+      if (hasError) console.log(`  ${icons.error} ${check.name} mismatch`);
+      else if (hasWarn) console.log(`  ${icons.warning} ${check.name} issues`);
+      else console.log(`  ${icons.success} ${check.name}`);
+    }
   }
 
-  console.log('\n━━━━━━━━━━━━━━━━━━━━━━\n');
+  if (!runtime.silent) console.log('\n━━━━━━━━━━━━━━━━━━━━━━\n');
 
   const errors = results.filter(r => r.level === 'error');
   const warnings = results.filter(r => r.level === 'warn');
 
-  console.log(`Issues detected: ${errors.length}`);
-  console.log(`Warnings: ${warnings.length}`);
-  console.log('');
+  if (!runtime.silent) {
+    console.log(`Issues detected: ${errors.length}`);
+    console.log(`Warnings: ${warnings.length}`);
+    console.log('');
+  }
 
   const signals = computeSignalsFromRules(results);
   const signalSummary = aggregateSignals(signals);
   const readiness = computeReadinessScore(signalSummary);
 
-  console.log(`Health Score: ${readiness.score} / 100`);
-  console.log(`Risk Level: ${readiness.risk}`);
-  console.log('');
+  if (!runtime.silent) {
+    console.log(`Health Score: ${readiness.score} / 100`);
+    console.log(`Risk Level: ${readiness.risk}`);
+    console.log('');
+  }
 
-  if (errors.length > 0 || warnings.length > 0) {
+  if (!runtime.silent && (errors.length > 0 || warnings.length > 0)) {
     console.log('Suggested fixes:\n');
     let fixCounter = 1;
     for (const r of [...errors, ...warnings]) {
@@ -83,6 +98,10 @@ export async function doctorCommand(options: { fix?: boolean } = {}): Promise<vo
       }
     }
     console.log('');
+  }
+
+  if (runtime.silent) {
+    finalLine(`DOCTOR ${errors.length === 0 ? 'PASS' : 'FAIL'} score=${readiness.score} errors=${errors.length} warns=${warnings.length}`);
   }
 
   if (options.fix) {
@@ -103,5 +122,5 @@ export async function doctorCommand(options: { fix?: boolean } = {}): Promise<vo
     }
   }
 
-  process.exit(getExitCode(results));
+  process.exit(getExitCode(results, resolveCommandThreshold(config, 'doctor', options.failOn)));
 }

@@ -8,6 +8,8 @@ import { renderMarkdown } from '../reporters/markdown-reporter.js';
 import { computeSignalsFromRules, aggregateSignals } from '../analyzers/signals.js';
 import { computeReadinessScore } from '../utils/score-calculator.js';
 import { printTitle, createSpinner, icons, colors } from '../utils/logger.js';
+import { recordRun } from '../analyzers/history.js';
+import { ruleCategory } from '../analyzers/index.js';
 
 export async function reportCommand(): Promise<void> {
   const cwd = getCwd();
@@ -28,6 +30,16 @@ export async function reportCommand(): Promise<void> {
   const signals = computeSignalsFromRules(results);
   const signalSummary = aggregateSignals(signals);
   const readiness = computeReadinessScore(signalSummary);
+  const topError = results.find((r) => r.level === 'error');
+
+  recordRun({
+    timestamp: new Date().toISOString(),
+    outcome: results.some((r) => r.level === 'error') ? 'fail' : 'pass',
+    score: readiness.score,
+    errorCount: results.filter((r) => r.level === 'error').length,
+    warnCount: results.filter((r) => r.level === 'warn').length,
+    primaryFailureCategory: topError ? ruleCategory(topError.id) : undefined,
+  }, cwd);
 
   const md = renderMarkdown({
     results,

@@ -1,3 +1,5 @@
+import * as fs from 'node:fs';
+import * as readline from 'node:readline';
 import type { RuleLevel } from '../utils/types.js';
 import { allPatterns } from './patterns.js';
 import type { Confidence } from './patterns.js';
@@ -90,4 +92,63 @@ export function matchPatterns(logContent: string): MatchResult[] {
   });
 
   return results;
+}
+
+/**
+ * Stream-based matcher for large log files.
+ * Uses line-by-line scanning and avoids loading the full file in memory.
+ */
+export async function matchPatternsFromFile(logFile: string): Promise<{ results: MatchResult[]; lineCount: number }> {
+  const rl = readline.createInterface({
+    input: fs.createReadStream(logFile, { encoding: 'utf-8' }),
+    crlfDelay: Infinity,
+  });
+
+  const results: MatchResult[] = [];
+  const seen = new Set<string>();
+  const ring: string[] = [];
+  let lineNumber = 0;
+
+  for await (const rawLine of rl) {
+    lineNumber += 1;
+    const line = stripAnsi(rawLine);
+
+    ring.push(line);
+    if (ring.length > CONTEXT_BEFORE + CONTEXT_AFTER + 1) {
+      ring.shift();
+    }
+
+    for (const pattern of allPatterns) {
+      if (seen.has(pattern.id)) continue;
+      if (!pattern.test(line)) continue;
+
+      seen.add(pattern.id);
+      const context = ring.slice(Math.max(0, ring.length - (CONTEXT_BEFORE + 1)));
+      const contextHighlight = Math.max(0, context.length - 1);
+
+      results.push({
+        id: pattern.id,
+        level: pattern.level,
+        confidence: pattern.confidence,
+        stage: pattern.stage,
+        title: pattern.title,
+        explanation: pattern.explanation,
+        fix: pattern.fix,
+        matchedLine: line.trim().substring(0, 200),
+        lineNumber,
+        context,
+        contextHighlight,
+        priority: pattern.priority ?? 50,
+      });
+    }
+  }
+
+  const levelOrder = { error: 0, warn: 1, info: 2 };
+  results.sort((a, b) => {
+    const lDiff = levelOrder[a.level] - levelOrder[b.level];
+    if (lDiff !== 0) return lDiff;
+    return a.priority - b.priority;
+  });
+
+  return { results, lineCount: lineNumber };
 }

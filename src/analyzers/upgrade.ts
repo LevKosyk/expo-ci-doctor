@@ -36,6 +36,21 @@ const EXPO_SDK_COMPAT: Record<number, {
   48: { reactNative: '0.71', nodeMin: '16.0.0' },
 };
 
+export type ExpoSdkCompat = {
+  reactNative: string;
+  nodeMin: string;
+  deprecatedOptions?: string[];
+  breakingPlugins?: string[];
+};
+
+export function getSupportedExpoSdks(): number[] {
+  return Object.keys(EXPO_SDK_COMPAT).map(Number).sort((a, b) => a - b);
+}
+
+export function getExpoSdkCompat(sdk: number): ExpoSdkCompat | null {
+  return EXPO_SDK_COMPAT[sdk] ?? null;
+}
+
 /**
  * Parse a package@version string into upgrade target info.
  * Supports: expo@51, expo@latest, eas-cli@latest, @expo/cli@51

@@ -50,6 +50,12 @@ function formatResultDefault(result: RuleResult) {
 
   if (result.fix) {
     console.log(`   ${chalk.green('Fix:')}   ${result.fix.split('\n').join('\n          ')}`);
+    const nextStep = result.fix.split('\n').find((line) => /^(npx|npm|pnpm|yarn)\s+/i.test(line.trim()));
+    if (nextStep) {
+      console.log(`   ${chalk.magenta('Next step:')} Run ${nextStep.trim()}`);
+    }
+  } else if (result.level !== 'info') {
+    console.log(`   ${chalk.magenta('Next step:')} Run expo-ci-doctor explain ${result.id}`);
   }
 }
 

@@ -1,9 +1,11 @@
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import ora from 'ora';
 import chalk from 'chalk';
 import { getCwd } from '../utils/context.js';
 import { loadConfig } from '../utils/config-loader.js';
 import { detectProject } from '../detectors/project.js';
-import { runRules, exitCode } from '../analyzers/index.js';
+import { runRules, exitCode, ruleCategory } from '../analyzers/index.js';
 import { printResults, type OutputMode } from '../reporters/terminal-reporter.js';
 import { renderMarkdown } from '../reporters/markdown-reporter.js';
 import { computeSignalsFromRules, aggregateSignals } from '../analyzers/signals.js';
@@ -12,6 +14,11 @@ import { parseUpgradeTarget, generateUpgradeSafetyReport } from '../analyzers/up
 import { emitGitHubAnnotations } from '../ci/github-actions.js';
 import type { RulePack, RuleLevel } from '../utils/types.js';
 import { printTitle, createSpinner, drawBox, icons, colors } from '../utils/logger.js';
+import { recordRun } from '../analyzers/history.js';
+import { finalLine, getRuntime, verboseLog } from '../utils/runtime.js';
+import { sendWebhookNotification } from '../utils/webhook.js';
+import { loadProjectTargets } from '../utils/project-scan.js';
+import { resolveCommandThreshold, exitCodeForThreshold } from '../utils/severity.js';
 
 /**
  * The `check` command.
@@ -27,12 +34,24 @@ export async function checkCommand(options: {
   severity?: string;
   format?: string;
   upgrade?: string;
+  summary?: boolean;
+  output?: string;
+  verbose?: boolean;
+  silent?: boolean;
+  annotations?: boolean;
+  webhook?: string;
+  allWorkspaces?: boolean;
+  failOn?: string;
 } = {}): Promise<void> {
   const cwd = getCwd();
   const config = loadConfig(cwd);
+  const runtime = getRuntime();
 
   const isJson = options.json || options.jsonFull;
   const isMarkdown = options.format === 'md';
+  const isSummary = Boolean(options.summary);
+  const isSilent = runtime.silent || Boolean(options.silent);
+  const targets = loadProjectTargets(cwd, Boolean(options.allWorkspaces));
 
   // Determine output mode
   let outputMode: OutputMode = 'default';
@@ -41,18 +60,21 @@ export async function checkCommand(options: {
   else if (options.ciSummary) outputMode = 'ci-summary';
   else if (options.ci) outputMode = 'ci';
 
-  if (!isJson && !isMarkdown) {
+  if (!isJson && !isMarkdown && !isSilent) {
     printTitle('expo-ci-doctor check');
     console.log(colors.dim(`  ${cwd}`));
   }
 
   let spinner = null;
-  if (!isJson && !isMarkdown) {
+  if (!isJson && !isMarkdown && !isSilent) {
     spinner = createSpinner('Scanning project…').start();
-    await delay(300);
   }
 
-  const info = detectProject(cwd);
+  verboseLog(`cwd=${cwd}`);
+
+  const primaryTarget = targets[0];
+  const info = primaryTarget.info;
+  verboseLog(`detected packageJson=${info.hasPackageJson}, monorepo=${info.isMonorepo}, workflows=${info.ci.workflows.length}`);
 
   if (!info.hasPackageJson) {
     if (spinner) spinner.fail('No package.json found — is this a JS/TS project?');
@@ -61,25 +83,38 @@ export async function checkCommand(options: {
 
   if (info.isMonorepo && spinner) {
     spinner.text = 'Monorepo detected — scanning root…';
-    await delay(150);
   }
 
   if (spinner) {
     spinner.text = 'Running rules…';
-    await delay(200);
   }
 
-  const { results } = runRules(info, {
-    pack: options.pack as RulePack | undefined,
-    ciStrict: options.ciStrict,
-    config,
+  const projectRuns = targets.map((target) => {
+    const { results } = runRules(target.info, {
+      pack: options.pack as RulePack | undefined,
+      ciStrict: options.ciStrict,
+      config: target.config,
+    });
+    const threshold = resolveCommandThreshold(target.config, 'check', options.failOn);
+    const codeForProject = exitCodeForThreshold(results, threshold);
+    return { target, results, threshold, code: codeForProject };
   });
-  const code = exitCode(results);
+
+  const results = projectRuns.flatMap(({ target, results: projectResults }) => (
+    projectRuns.length > 1
+      ? projectResults.map((result) => ({
+          ...result,
+          title: `[${target.label}] ${result.title}`,
+        }))
+      : projectResults
+  ));
+  const code = Math.max(...projectRuns.map((run) => run.code));
+  verboseLog(`rules completed: ${results.length} result(s), exitCode=${code}`);
 
   if (spinner) spinner.stop();
 
   // ── Upgrade Safety Report ─────────────────────────────────────────
-  if (options.upgrade) {
+  if (options.upgrade && !isSilent) {
     const target = parseUpgradeTarget(options.upgrade, {
       ...info.dependencies,
       ...info.devDependencies,
@@ -129,6 +164,16 @@ export async function checkCommand(options: {
   const signalSummary = aggregateSignals(signals);
   const readiness = computeReadinessScore(signalSummary);
 
+  const topError = results.find((r) => r.level === 'error');
+  recordRun({
+    timestamp: new Date().toISOString(),
+    outcome: code === 0 ? 'pass' : 'fail',
+    score: readiness.score,
+    errorCount: results.filter((r) => r.level === 'error').length,
+    warnCount: results.filter((r) => r.level === 'warn').length,
+    primaryFailureCategory: topError ? ruleCategory(topError.id) : undefined,
+  });
+
   // ── Markdown output ───────────────────────────────────────────────
   if (isMarkdown) {
     const md = renderMarkdown({
@@ -136,7 +181,14 @@ export async function checkCommand(options: {
       readiness,
       projectPath: cwd,
     });
-    console.log(md);
+    if (options.output) {
+      const outPath = path.resolve(cwd, options.output);
+      fs.writeFileSync(outPath, md + '\n', 'utf-8');
+      if (!isSilent) console.log(chalk.dim(`  Saved markdown output to ${outPath}`));
+      else finalLine(outPath);
+    } else {
+      console.log(md);
+    }
     process.exit(code);
   }
 
@@ -145,18 +197,64 @@ export async function checkCommand(options: {
     const out = options.jsonFull
       ? { results, total: results.length, readiness }
       : results.map(r => ({ id: r.id, level: r.level, title: r.title }));
-    console.log(JSON.stringify(out, null, 2));
+    const payload = JSON.stringify(out, null, 2);
+    if (options.output) {
+      const outPath = path.resolve(cwd, options.output);
+      fs.writeFileSync(outPath, payload + '\n', 'utf-8');
+      if (!isSilent) console.log(chalk.dim(`  Saved JSON output to ${outPath}`));
+      else finalLine(outPath);
+    } else {
+      console.log(payload);
+    }
+    process.exit(code);
+  }
+
+  if (isSummary) {
+    const errors = results.filter((r) => r.level === 'error');
+    const warnings = results.filter((r) => r.level === 'warn');
+    const top3 = [...errors, ...warnings].slice(0, 3);
+    const firstFix = top3.find((r) => r.fix)?.fix?.split('\n')[0] ?? 'Run: expo-ci-doctor explain-error';
+
+    const lines = [
+      `Score: ${readiness.score}/100 (${readiness.risk})`,
+      `Errors: ${errors.length}  Warnings: ${warnings.length}`,
+      'Top issues:',
+      ...top3.map((r, i) => `  ${i + 1}. [${r.level}] ${r.title}`),
+      `Recommended first fix: ${firstFix}`,
+    ];
+    const summaryText = lines.join('\n');
+
+    if (options.output) {
+      const outPath = path.resolve(cwd, options.output);
+      fs.writeFileSync(outPath, summaryText + '\n', 'utf-8');
+      if (!isSilent) console.log(chalk.dim(`  Saved summary output to ${outPath}`));
+      else finalLine(outPath);
+    }
+
+    if (isSilent) {
+      finalLine(`CHECK ${code === 0 ? 'PASS' : 'FAIL'} score=${readiness.score} errors=${errors.length} warns=${warnings.length}`);
+    } else {
+      console.log('');
+      console.log(chalk.bold('  Summary'));
+      console.log(chalk.dim('  ─────────────────────────'));
+      for (const line of lines) {
+        console.log(`  ${line}`);
+      }
+      console.log('');
+    }
     process.exit(code);
   }
 
   // ── Standard output ───────────────────────────────────────────────
-  printResults(results, {
-    mode: outputMode,
-    severity: options.severity as RuleLevel | undefined,
-  });
+  if (!isSilent) {
+    printResults(results, {
+      mode: outputMode,
+      severity: options.severity as RuleLevel | undefined,
+    });
+  }
 
   // ── Readiness Score ───────────────────────────────────────────────
-  if (outputMode === 'default' || outputMode === 'ci') {
+  if (!isSilent && (outputMode === 'default' || outputMode === 'ci')) {
     const riskColor = readiness.risk === 'High' ? colors.error
       : readiness.risk === 'Medium' ? colors.warning : colors.success;
       
@@ -188,14 +286,30 @@ export async function checkCommand(options: {
   }
 
   // ── GitHub Actions annotations ────────────────────────────────────
-  emitGitHubAnnotations(results);
-
-  if (!isJson && info.isMonorepo) {
-    console.log(chalk.dim('  📦 Monorepo detected. Run from a workspace root for deeper analysis.'));
-    console.log('');
+  if (options.annotations || process.env.GITHUB_ACTIONS === 'true') {
+    emitGitHubAnnotations(results, true);
   }
 
-  if (!isJson) {
+  if (options.webhook) {
+    const topIssues = results.slice(0, 5).map((r) => ({ title: r.title, level: r.level, id: r.id }));
+    await sendWebhookNotification(options.webhook, {
+      title: 'expo-ci-doctor check result',
+      text: `Check ${code === 0 ? 'passed' : 'failed'} with score ${readiness.score}/100 (${readiness.risk}). Errors: ${results.filter((r) => r.level === 'error').length}, warnings: ${results.filter((r) => r.level === 'warn').length}.`,
+      severity: code === 0 ? 'info' : 'error',
+      source: cwd,
+      score: readiness.score,
+      issues: topIssues,
+    });
+  }
+
+  if (!isJson && info.isMonorepo) {
+    if (!isSilent) {
+    console.log(chalk.dim('  📦 Monorepo detected. Run from a workspace root for deeper analysis.'));
+    console.log('');
+    }
+  }
+
+  if (!isJson && !isSilent) {
     const overrideCount = Object.keys(config.rules).length;
     if (overrideCount > 0) {
       console.log(chalk.dim(`  ⚙  ${overrideCount} rule override${overrideCount > 1 ? 's' : ''} applied from config`));
@@ -203,9 +317,11 @@ export async function checkCommand(options: {
     }
   }
 
-  process.exit(code);
-}
+  if (isSilent) {
+    const errors = results.filter((r) => r.level === 'error').length;
+    const warns = results.filter((r) => r.level === 'warn').length;
+    finalLine(`CHECK ${code === 0 ? 'PASS' : 'FAIL'} score=${readiness.score} errors=${errors} warns=${warns}`);
+  }
 
-function delay(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
+  process.exit(code);
 }

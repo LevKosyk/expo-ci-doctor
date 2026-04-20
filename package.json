@@ -1,6 +1,6 @@
 {
     "name": "expo-ci-doctor",
-    "version": "1.0.1",
+    "version": "1.0.3",
     "description": "Predicts Expo / React Native CI and EAS Build problems before you run the build",
     "type": "module",
     "main": "./dist/index.js",
@@ -13,8 +13,9 @@
         "LICENSE"
     ],
     "scripts": {
-        "build": "tsc && chmod +x ./dist/index.js",
-        "postbuild": "chmod +x ./dist/index.js",
+        "build": "tsup src/index.ts --format esm --clean --minify && chmod +x ./dist/index.js",
+        "dev": "tsup src/index.ts --format esm --watch --onSuccess 'chmod +x ./dist/index.js'",
+        "test": "npm run build && node --test dist/**/*.test.js",
         "prepublishOnly": "npm run build"
     },
     "keywords": [
@@ -36,7 +37,12 @@
     "engines": {
         "node": ">=18.0.0"
     },
-    "dependencies": {
+    "dependencies": {},
+    "devDependencies": {
+        "@types/gradient-string": "^1.1.6",
+        "@types/inquirer": "^9.0.9",
+        "@types/node": "^20.17.0",
+        "@types/semver": "^7.5.8",
         "boxen": "^8.0.1",
         "chalk": "^5.4.1",
         "cli-table3": "^0.6.5",
@@ -44,13 +50,8 @@
         "gradient-string": "^3.0.0",
         "inquirer": "^13.3.0",
         "ora": "^8.2.0",
-        "semver": "^7.6.3"
-    },
-    "devDependencies": {
-        "@types/gradient-string": "^1.1.6",
-        "@types/inquirer": "^9.0.9",
-        "@types/node": "^20.17.0",
-        "@types/semver": "^7.5.8",
+        "semver": "^7.6.3",
+        "tsup": "^8.0.0",
         "typescript": "^5.7.0"
     }
 }

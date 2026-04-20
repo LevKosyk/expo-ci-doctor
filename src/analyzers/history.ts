@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
+import { getCwd } from '../utils/context.js';
 
 export type RunOutcome = 'pass' | 'fail';
 
@@ -21,16 +22,23 @@ export interface StabilityTrend {
 
 // ─── Storage path ────────────────────────────────────────────────────
 
-function getHistoryDir(): string {
+function getProjectHistoryDir(cwd = getCwd()): string {
+  return path.join(cwd, '.expo-ci-doctor');
+}
+
+function getLocalHistoryDir(): string {
   return path.join(os.homedir(), '.expo-ci-doctor');
 }
 
-function getHistoryPath(): string {
-  return path.join(getHistoryDir(), 'history.json');
+function getHistoryPath(cwd = getCwd()): string {
+  return path.join(getProjectHistoryDir(cwd), 'history.json');
 }
 
-function readHistory(): HistoryEntry[] {
-  const p = getHistoryPath();
+function getLocalHistoryPath(): string {
+  return path.join(getLocalHistoryDir(), 'history.json');
+}
+
+function readHistoryFromPath(p: string): HistoryEntry[] {
   try {
     if (!fs.existsSync(p)) return [];
     return JSON.parse(fs.readFileSync(p, 'utf-8')) as HistoryEntry[];
@@ -39,12 +47,18 @@ function readHistory(): HistoryEntry[] {
   }
 }
 
-function writeHistory(entries: HistoryEntry[]): void {
-  const dir = getHistoryDir();
+function readHistory(cwd = getCwd()): HistoryEntry[] {
+  const projectEntries = readHistoryFromPath(getHistoryPath(cwd));
+  if (projectEntries.length > 0) return projectEntries;
+  return readHistoryFromPath(getLocalHistoryPath());
+}
+
+function writeHistory(entries: HistoryEntry[], cwd = getCwd()): void {
+  const dir = getProjectHistoryDir(cwd);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
-  fs.writeFileSync(getHistoryPath(), JSON.stringify(entries, null, 2), 'utf-8');
+  fs.writeFileSync(getHistoryPath(cwd), JSON.stringify(entries, null, 2), 'utf-8');
 }
 
 // ─── Public API ──────────────────────────────────────────────────────
@@ -53,11 +67,24 @@ function writeHistory(entries: HistoryEntry[]): void {
  * Record the result of the current check/doctor run.
  * History is capped at 50 entries to keep the file small.
  */
-export function recordRun(entry: HistoryEntry): void {
-  const history = readHistory();
+export function recordRun(entry: HistoryEntry, cwd = getCwd()): void {
+  const history = readHistory(cwd);
   history.push(entry);
   const trimmed = history.slice(-50);
-  writeHistory(trimmed);
+  writeHistory(trimmed, cwd);
+}
+
+export function getHistoryEntries(limit = 50, cwd = getCwd()): HistoryEntry[] {
+  return readHistory(cwd).slice(-Math.max(1, limit));
+}
+
+export function isFlaky(entries: HistoryEntry[]): boolean {
+  if (entries.length < 4) return false;
+  let flips = 0;
+  for (let i = 1; i < entries.length; i++) {
+    if (entries[i].outcome !== entries[i - 1].outcome) flips += 1;
+  }
+  return flips >= Math.floor(entries.length / 2);
 }
 
 /**
@@ -69,8 +96,8 @@ export function recordRun(entry: HistoryEntry): void {
  *   - Degrading: pass rate decreased by >= 1 run
  *   - Stable: no change
  */
-export function computeTrend(): StabilityTrend {
-  const all = readHistory();
+export function computeTrend(cwd = getCwd()): StabilityTrend {
+  const all = readHistory(cwd);
   const entries = all.slice(-6); // last 6 runs
 
   if (entries.length < 2) {

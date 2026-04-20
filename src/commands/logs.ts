@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import chalk from 'chalk';
 import ora from 'ora';
-import { matchPatterns, type MatchResult } from '../analyzers/matcher.js';
+import { matchPatterns, matchPatternsFromFile, type MatchResult } from '../analyzers/matcher.js';
 import { filterByNoise, noiseFilterNote, type NoiseMode } from '../analyzers/noise.js';
 import { computeSignalsFromMatches, aggregateSignals } from '../analyzers/signals.js';
 import { computeReadinessScore } from '../utils/score-calculator.js';
@@ -64,15 +64,21 @@ export async function logsCommand(logFile: string, options: {
   }
 
   const spinner = ora({ text: 'Scanning log…', color: 'cyan', indent: 2 }).start();
-  await delay(300);
+  const stat = fs.statSync(logFile);
 
-  const raw = fs.readFileSync(logFile, 'utf-8');
-  const lineCount = raw.split('\n').length;
-
-  spinner.text = `Matching ${lineCount} lines against known patterns…`;
-  await delay(200);
-
-  const allResults = matchPatterns(raw);
+  let allResults: MatchResult[];
+  let lineCount = 0;
+  if (stat.size > 2 * 1024 * 1024) {
+    spinner.text = 'Large log detected — using streaming analysis…';
+    const streamed = await matchPatternsFromFile(logFile);
+    allResults = streamed.results;
+    lineCount = streamed.lineCount;
+  } else {
+    const raw = fs.readFileSync(logFile, 'utf-8');
+    lineCount = raw.split('\n').length;
+    spinner.text = `Matching ${lineCount} lines against known patterns…`;
+    allResults = matchPatterns(raw);
+  }
 
   // ── Noise filter ──────────────────────────────────────────────────
   let displayResults: MatchResult[];
@@ -231,8 +237,4 @@ export async function logsCommand(logFile: string, options: {
   if (errors > 0) process.exit(2);
   if (warnings > 0) process.exit(1);
   process.exit(0);
-}
-
-function delay(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
 }

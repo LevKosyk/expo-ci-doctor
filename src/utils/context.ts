@@ -6,7 +6,6 @@ import * as path from 'node:path';
  */
 export function readJsonSafe(filePath: string): Record<string, unknown> | null {
   try {
-    if (!fs.existsSync(filePath)) return null;
     const raw = fs.readFileSync(filePath, 'utf-8');
     return JSON.parse(raw) as Record<string, unknown>;
   } catch {
@@ -19,7 +18,6 @@ export function readJsonSafe(filePath: string): Record<string, unknown> | null {
  */
 export function readTextSafe(filePath: string): string | null {
   try {
-    if (!fs.existsSync(filePath)) return null;
     return fs.readFileSync(filePath, 'utf-8').trim();
   } catch {
     return null;

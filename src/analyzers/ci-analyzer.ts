@@ -61,9 +61,11 @@ export const nodeVersionMismatch: Rule = {
         results.push({
           id: this.id,
           level: 'error',
-          title: `CI has no actions/setup-node (${wf.filename})`,
+          title: `CI has no explicit Node setup (${wf.filename})`,
           details: 'Without it, CI uses default Node version causing mismatches.',
-          fix: 'Add uses: actions/setup-node@v4',
+          fix: wf.provider === 'github-actions'
+            ? 'Add uses: actions/setup-node@v4'
+            : 'Pin a Node image/version in your CI config.',
         });
         continue;
       }
@@ -179,16 +181,13 @@ export const ciMissingInstall: Rule = {
     for (const wf of info.ci.workflows) {
       if (!wf.easBuildCommand) continue;
 
-      const content = JSON.stringify(wf);
-      const hasInstall = content.includes('npm ci') || content.includes('npm install') || content.includes('yarn install') || content.includes('yarn --frozen') || content.includes('pnpm install') || content.includes('pnpm i');
-
-      if (!hasInstall) {
+      if (!wf.hasInstallStep) {
         return [{
           id: this.id,
           level: 'warn',
           title: `CI runs eas build without install step (${wf.filename})`,
           details: 'Local config plugins and scripts may fail without node_modules.',
-          fix: `Add a package manager install step.`,
+          fix: `Add an install step before EAS build (npm ci / yarn install --frozen-lockfile / pnpm install --frozen-lockfile).`,
         }];
       }
     }

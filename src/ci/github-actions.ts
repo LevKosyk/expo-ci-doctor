@@ -21,8 +21,8 @@ export function isGitHubActions(): boolean {
  * Emit a GitHub Actions annotation for a rule result.
  * Falls back gracefully when not running in GitHub Actions.
  */
-export function emitGitHubAnnotation(result: RuleResult): void {
-  if (!isGitHubActions()) return;
+export function emitGitHubAnnotation(result: RuleResult, force = false): void {
+  if (!force && !isGitHubActions()) return;
 
   const level = result.level === 'error' ? 'error'
     : result.level === 'warn' ? 'warning'
@@ -48,9 +48,9 @@ export function emitGitHubAnnotation(result: RuleResult): void {
  * Emit annotations for all results.
  * Only active when GITHUB_ACTIONS=true.
  */
-export function emitGitHubAnnotations(results: RuleResult[]): void {
-  if (!isGitHubActions()) return;
+export function emitGitHubAnnotations(results: RuleResult[], force = false): void {
+  if (!force && !isGitHubActions()) return;
   for (const r of results) {
-    emitGitHubAnnotation(r);
+    emitGitHubAnnotation(r, force);
   }
 }
