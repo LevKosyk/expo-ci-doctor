@@ -4,9 +4,45 @@ import { Command } from 'commander';
 import { checkForUpdate } from './utils/self-update.js';
 import { configureRuntime, getRuntime } from './utils/runtime.js';
 
-const CURRENT_VERSION = '1.0.3';
+const CURRENT_VERSION = '1.0.4';
+const DOCS_URL = 'https://www.expocidoctor.dev/';
+const TYPO_HELP_FLAG = '--hepl';
 
 const program = new Command();
+
+program
+  .showSuggestionAfterError(true)
+  .showHelpAfterError(`\nNeed help? Run: expo-ci-doctor --help\nDocs: ${DOCS_URL}\n`);
+
+function formatOptionFlags(flags: string): string {
+  return flags.replace(/,/g, ', ');
+}
+
+function generateCommandFlagDocs(cli: Command): string {
+  const lines: string[] = ['\nCommand & Flag Reference:'];
+
+  for (const cmd of cli.commands) {
+    lines.push(`\n  ${cmd.name()}`);
+    lines.push(`  ${cmd.description() || 'No description available.'}`);
+
+    const options = cmd.options.filter(option => option.flags !== '-h, --help');
+    if (!options.length) {
+      lines.push('  Flags: none');
+      continue;
+    }
+
+    lines.push('  Flags:');
+    for (const option of options) {
+      const defaultPart = option.defaultValue !== undefined
+        ? ` (default: ${String(option.defaultValue)})`
+        : '';
+      lines.push(`    ${formatOptionFlags(option.flags)}  ${option.description || 'No description.'}${defaultPart}`);
+    }
+  }
+
+  lines.push(`\nFull docs: ${DOCS_URL}`);
+  return lines.join('\n');
+}
 
 program
   .name('expo-ci-doctor')
@@ -40,6 +76,9 @@ program
   });
 
 program.addHelpText('after', `
+Docs:
+  ${DOCS_URL}
+
 Examples:
   $ expo-ci-doctor doctor
   Run a full health audit of your Expo project.
@@ -71,6 +110,8 @@ Examples:
   $ expo-ci-doctor dashboard
   Show a workspace-by-workspace health summary for monorepos.
 `);
+
+program.addHelpText('after', generateCommandFlagDocs(program));
 
 // ─── Commands (all lazy-loaded) ──────────────────────────────────────
 
@@ -351,9 +392,15 @@ program
 
 // ─── Interactive mode (no args) ──────────────────────────────────────
 
-program.parse();
+const argv = process.argv.map((arg: string) => arg === TYPO_HELP_FLAG ? '--help' : arg);
+if (process.argv.includes(TYPO_HELP_FLAG)) {
+  console.log(`\n  Detected ${TYPO_HELP_FLAG}. Showing help for expo-ci-doctor.\n`);
+}
+
+program.parse(argv);
 
 if (process.argv.length === 2) {
+  console.log(`\n  No command specified. Run: expo-ci-doctor --help\n  Docs: ${DOCS_URL}\n`);
   const { runInteractiveMode } = await import('./reporters/interactive.js');
   runInteractiveMode().then(async (chosen) => {
     if (!chosen) process.exit(0);

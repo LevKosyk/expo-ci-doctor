@@ -16,6 +16,8 @@ const CHOICES: InteractiveChoice[] = [
   { label: 'exit',      command: 'exit',      description: 'Exit' },
 ];
 
+const DOCS_URL = 'https://www.expocidoctor.dev/';
+
 /**
  * Interactive mode — launched when the CLI is run with no arguments.
  *
@@ -50,6 +52,7 @@ export async function runInteractiveMode(): Promise<string | null> {
   const idx = parseInt(answer, 10) - 1;
   if (isNaN(idx) || idx < 0 || idx >= CHOICES.length) {
     console.log(chalk.yellow(`  Unrecognized choice. Run: expo-ci-doctor --help`));
+    console.log(chalk.dim(`  Docs: ${DOCS_URL}`));
     return null;
   }
 
@@ -67,7 +70,8 @@ function promptChoice(prompt: string): Promise<string | null> {
   return new Promise((resolve) => {
     // TTY check: skip interactive prompt in non-interactive environments
     if (!process.stdin.isTTY) {
-      console.log(chalk.dim('  Not a TTY — skipping interactive mode. Use `expo-ci-doctor --help`.'));
+      console.log(chalk.dim('  Not a TTY - skipping interactive mode. Use expo-ci-doctor --help.'));
+      console.log(chalk.dim(`  Docs: ${DOCS_URL}`));
       resolve(null);
       return;
     }

@@ -1,6 +1,6 @@
 {
     "name": "expo-ci-doctor",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "description": "Predicts Expo / React Native CI and EAS Build problems before you run the build",
     "type": "module",
     "main": "./dist/index.js",

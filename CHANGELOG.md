@@ -12,6 +12,8 @@ All notable changes to this project are documented in this file.
 - Regression test coverage for package manager drift checks.
 - `dev` script for watch-mode development with tsup.
 - `test` script using Node's native test runner (`node --test`).
+- CLI help typo fallback: `--hepl` is now treated as `--help`.
+- Expanded `--help` output with a generated command-and-flag reference section.
 
 ### Improved
 - Build system migrated from tsc to tsup for faster, minified ESM bundles.
@@ -19,6 +21,7 @@ All notable changes to this project are documented in this file.
 - `upgrade-plan` now shows a step-by-step migration path instead of only per-section output.
 - Documentation updated to reflect the newer command set and workspace flow.
 - All CLI dependencies moved to devDependencies (better practice for a CLI tool).
+- Unknown-command and no-command UX now points users to both `expo-ci-doctor --help` and the docs site (`https://www.expocidoctor.dev/`).
 
 ### Changed
 - Removed manual TypeScript compiler setup in favor of tsup.

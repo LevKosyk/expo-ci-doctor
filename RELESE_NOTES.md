@@ -38,6 +38,14 @@ Version 1.0.3 adds workspace-level visibility, stronger package-manager drift de
 - All CLI dependencies now in devDependencies (cleaner package structure).
 - Output is now minified by default, reducing distribution size.
 
+### 6) Help and docs usability upgrades
+- Added typo tolerance for `--hepl` so users still get CLI help.
+- Expanded `expo-ci-doctor --help` with a generated command and flag reference for every command.
+- Unknown command errors now include direct guidance:
+  - `expo-ci-doctor --help`
+  - `https://www.expocidoctor.dev/`
+- Running `expo-ci-doctor` with no command now prints the same docs/help guidance before interactive mode.
+
 ## Related quality upgrades
 - Better workspace-aware command structure for larger repos.
 - Clearer upgrade guidance for teams moving between Expo SDK versions.
