@@ -1,0 +1,183 @@
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+}
+
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  color: var(--green);
+}
+
+.logoMark {
+  width: 31px;
+  height: 31px;
+  flex: none;
+  filter: drop-shadow(0 0 9px rgba(183, 255, 74, 0.18));
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.brand:hover .logoMark {
+  transform: rotate(-3deg) scale(1.05);
+  filter: drop-shadow(0 0 12px rgba(183, 255, 74, 0.35));
+}
+
+.logoSignal,
+.logoCheck {
+  fill: none;
+  stroke: #090909;
+  stroke-width: 2.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.logoCheck {
+  stroke-width: 2.2;
+}
+
+.logoWord {
+  color: var(--white);
+  font: 700 14px/1 var(--mono);
+  letter-spacing: -0.045em;
+}
+
+.logoWord span {
+  color: var(--green);
+  margin: 0 2px;
+}
+
+.maintenanceNotice {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 8px 18px;
+  border-bottom: 1px solid #594820;
+  background: #171308;
+  color: #b9b19d;
+  font: 11px/1.4 var(--mono);
+}
+
+.maintenanceNotice strong {
+  color: #ffd166;
+  letter-spacing: 0.1em;
+}
+
+.maintenanceNotice a {
+  color: var(--white);
+  text-decoration: underline;
+  text-decoration-color: #665a39;
+  text-underline-offset: 3px;
+}
+
+.header nav .githubLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: -8px 0;
+  padding: 7px 11px;
+  border: 1px solid #3b4d24;
+  color: var(--white);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.header nav .githubLink span,
+.githubButton span,
+.starCta > span {
+  color: var(--green);
+}
+
+.header nav .githubLink:hover {
+  border-color: var(--green);
+  background: rgba(183, 255, 74, 0.06);
+}
+
+.githubButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.githubButton span {
+  margin: 0;
+}
+
+.starCta {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 24px;
+  color: #aaa;
+  font: 12px/1 var(--mono);
+  transition: color 0.2s ease;
+}
+
+.starCta strong {
+  color: var(--white);
+}
+
+.starCta b {
+  color: var(--green);
+}
+
+.starCta:hover {
+  color: var(--white);
+}
+
+@media (max-width: 800px) {
+  .maintenanceNotice {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 4px 9px;
+    justify-content: flex-start;
+  }
+
+  .maintenanceNotice a {
+    width: 100%;
+  }
+
+  .header nav .githubLink {
+    padding: 7px 9px;
+  }
+
+  .header nav .githubLink span {
+    display: none;
+  }
+
+  .heroActions {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
+.movedPage {
+  min-height: calc(100vh - 112px);
+  padding: 120px 8%;
+  background-image: linear-gradient(#171717 1px, transparent 1px), linear-gradient(90deg, #171717 1px, transparent 1px);
+  background-size: 72px 72px;
+}
+
+.movedPage h1 {
+  max-width: 850px;
+  margin: 28px 0;
+  font-size: clamp(48px, 7vw, 90px);
+  letter-spacing: -0.055em;
+  line-height: 0.95;
+}
+
+.movedPage > p:not(.sectionEyebrow) {
+  max-width: 670px;
+  margin-bottom: 38px;
+  color: #aaa;
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+.movedPage .button {
+  display: inline-block;
+  margin: 0 10px 10px 0;
+}
