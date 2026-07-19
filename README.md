@@ -20,6 +20,8 @@ The analyzer runs locally, uploads no logs or source code, includes no telemetry
 
 The documentation formerly hosted at `expocidoctor.dev` is preserved in this repository:
 
+- [Archived project website](https://levkosyk.github.io/expo-ci-doctor/)
+
 - [Quickstart](docs/quickstart.md)
 - [Commands and output formats](docs/commands.md)
 - [CI integration](docs/ci-integration.md)
